@@ -71,8 +71,8 @@ userApp.post('/panel/change-server', async (req, res) => {
             const groupInfo = await Group.findOne({ name: user.groupName });
             if (groupInfo) {
                 try {
-                    // 🌟 .env ထဲက MASTER_API_KEY ကို ဆွဲသုံးထားပါသည်
-                    const masterResponse = await axios.post('http://178.128.55.202:8888/api/generate-keys', {
+                    // 🌟 IP အသစ် ပြောင်းထားပါသည်
+                    const masterResponse = await axios.post('http://168.144.33.53:8888/api/generate-keys', {
                         masterGroupId: groupInfo.masterGroupId, userName: user.name, totalGB: user.totalGB, expireDate: user.expireDate
                     }, { headers: { 'x-api-key': process.env.MASTER_API_KEY } });
                     
@@ -86,8 +86,8 @@ userApp.post('/panel/change-server', async (req, res) => {
         user.currentServer = newServer; await user.save(); await redisClient.del(token); 
 
         try {
-            // 🌟 .env ထဲက MASTER_API_KEY ကို ဆွဲသုံးထားပါသည်
-            await axios.post('http://178.128.55.202:8888/api/webhook/switch', { 
+            // 🌟 IP အသစ် ပြောင်းထားပါသည်
+            await axios.post('http://168.144.33.53:8888/api/webhook/switch', { 
                 token: token, activeServer: newServer 
             }, { headers: { 'x-api-key': process.env.MASTER_API_KEY } });
         } catch (err) { console.log("Webhook Error"); }
