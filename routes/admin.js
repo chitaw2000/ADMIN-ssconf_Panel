@@ -53,7 +53,7 @@ adminApp.get('/', async (req, res) => {
         if (response.data && response.data.groups) {
             response.data.groups.forEach(mg => { masterGroupsDropdown += `<option value="${mg.id}">${mg.name} (${mg.serverCount} Nodes)</option>`; });
         }
-    } catch (error) { masterGroupsDropdown = `<option value="" disabled>Error: ${error.message}</option>`; }
+    } catch (error) { masterGroupsDropdown = `<option value="" disabled>Error: Master Panel Connection Failed</option>`; }
 
     res.send(`
         <!DOCTYPE html><html><head><script src="https://cdn.tailwindcss.com"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet"></head>
@@ -99,7 +99,7 @@ adminApp.post('/create-group', async (req, res) => {
 
 adminApp.post('/delete-group', async (req, res) => {
     try {
-        // Group တစ်ခုလုံးဖျက်လျှင် အထဲက User တွေကို Master Panel မှာပါ လိုက်ဖျက်ပေးမည်
+        // Group ဖျက်လျှင် အထဲက User တွေကို Master ဆီမှာပါ လိုက်ဖျက်မည်
         const users = await User.find({ groupName: req.body.groupName });
         for (const u of users) {
             try { await axios.post('http://168.144.33.53:8888/api/user-action', { token: u.token, action: "delete" }, { headers: { 'x-api-key': 'My_Super_Secret_VPN_Key_2026' } }); } catch(e){}
@@ -117,13 +117,15 @@ adminApp.get('/group/:name', async (req, res) => {
     const groupName = req.params.name;
     const groupInfo = await Group.findOne({ name: groupName });
     const users = await User.find({ groupName: groupName });
+    
     const domainName = (groupInfo && groupInfo.nsRecord) ? groupInfo.nsRecord : process.env.VPS_IP;
-    const currentHost = req.get('host'); // ဆာဗာရဲ့ လက်ရှိ Domain ကို လှမ်းယူမည်
+    const currentHost = req.get('host'); // ဆာဗာရဲ့ လက်ရှိ Domain/IP
 
     let usersHtml = '';
     users.forEach((u, index) => {
+        // 🌟 Link ၂ မျိုး (SSCONF အတွက် နှင့် User ဝင်ရမည့် Web Panel အတွက်)
         const ssconfLink = `ssconf://${domainName}/${u.token}.json#VPN-${encodeURIComponent(u.name.replace(/\s+/g, ''))}`;
-        const webPanelLink = `http://${currentHost}/panel/${u.token}`; // 🌟 User ဝင်မည့် Web Panel Link
+        const webPanelLink = `http://${currentHost}/panel/${u.token}`; 
         
         const serverCount = u.accessKeys ? Object.keys(u.accessKeys).length : 0;
         const usagePercent = u.totalGB > 0 ? ((u.usedGB / u.totalGB) * 100).toFixed(1) : 0;
@@ -137,7 +139,7 @@ adminApp.get('/group/:name', async (req, res) => {
             <td class="p-4 w-48"><div class="flex justify-between text-xs mb-1 font-bold"><span>${u.usedGB} GB</span><span>${u.totalGB} GB</span></div><div class="w-full bg-slate-100 rounded-full h-1.5"><div class="bg-indigo-500 h-1.5 rounded-full" style="width: ${usagePercent}%"></div></div></td>
             <td class="p-4 text-right flex justify-end gap-2">
                 
-                <button id="panelBtn-${u.token}" onclick="copyLink('${webPanelLink}', 'panelBtn-${u.token}', '<i class=\\'fas fa-globe\\'></i>')" class="bg-indigo-50 text-indigo-600 hover:bg-indigo-500 hover:text-white px-3 py-2 rounded-lg text-sm font-bold transition" title="Copy Web Panel Link">
+                <button id="panelBtn-${u.token}" onclick="copyLink('${webPanelLink}', 'panelBtn-${u.token}', '<i class=\\'fas fa-globe\\'></i>')" class="bg-indigo-50 text-indigo-600 hover:bg-indigo-500 hover:text-white px-3 py-2 rounded-lg text-sm font-bold transition" title="Copy User Panel Link">
                     <i class="fas fa-globe"></i>
                 </button>
 
@@ -145,7 +147,7 @@ adminApp.get('/group/:name', async (req, res) => {
                     <i class="fas fa-link"></i>
                 </button>
                 
-                <form action="/admin/delete-user" method="POST" onsubmit="return confirm('ဖျက်မှာ သေချာပြီလား?');" class="m-0">
+                <form action="/admin/delete-user" method="POST" onsubmit="return confirm('ဖျက်မှာ သေချာပြီလား? Master Panel မှာပါ ပျက်သွားပါမည်။');" class="m-0">
                     <input type="hidden" name="token" value="${u.token}"><input type="hidden" name="groupName" value="${u.groupName}">
                     <button type="submit" class="bg-red-50 text-red-500 hover:bg-red-600 hover:text-white px-3 py-2 rounded-lg text-sm font-bold transition"><i class="fas fa-trash"></i></button>
                 </form>
@@ -183,7 +185,7 @@ adminApp.get('/group/:name', async (req, res) => {
 });
 
 // ==========================================
-// 3. API ENDPOINTS
+// 3. API ENDPOINTS (Add, Delete, Webhook)
 // ==========================================
 adminApp.post('/add-user', async (req, res) => {
     try {
@@ -207,73 +209,48 @@ adminApp.post('/delete-user', async (req, res) => {
     try {
         const token = req.body.token;
 
-        // 🌟 ၁။ Master Panel ဘက်မှာ အရင်သွားဖျက်မည်
+        // 🌟 ၁။ Master Panel ဘက်မှာ အရင်သွားဖျက်မည် (API Integration)
         try {
             await axios.post('http://168.144.33.53:8888/api/user-action', { 
                 token: token, 
                 action: "delete" 
             }, { headers: { 'x-api-key': 'My_Super_Secret_VPN_Key_2026' } });
-        } catch(e) { console.log("Master Panel Delete Failed"); }
+        } catch(e) { console.log("Master Panel Delete API Failed"); }
 
-        // ၂။ Local DB ဘက်မှာ ဖျက်မည်
+        // ၂။ Local DB မှာ ဖျက်မည်
         await User.deleteOne({ token: token });
         res.redirect('/admin/group/' + encodeURIComponent(req.body.groupName));
     } catch (error) { res.status(500).send("Error deleting user"); }
 });
 
-adminApp.post('/update-gb-api', async (req, res) => {
+// ==========================================
+// 🌟 4. RECEIVE GB FROM MASTER PANEL (WEBHOOK)
+// ==========================================
+// Master Panel က ဒီလမ်းကြောင်းကို လှမ်းပြီး POST လုပ်ပါလိမ့်မယ်
+adminApp.post('/api/receive-gb', async (req, res) => {
     try {
+        // Master ဆီကလာတဲ့ API Key ကို စစ်ဆေးရန်
+        const apiKey = req.headers['x-api-key'];
+        if (apiKey !== 'My_Super_Secret_VPN_Key_2026') {
+            return res.status(401).json({ error: "Unauthorized API Key" });
+        }
+
         const { token, usedGB } = req.body;
+        if (!token || usedGB === undefined) {
+            return res.status(400).json({ error: "Missing token or usedGB" });
+        }
+
         const user = await User.findOne({ token: token });
         if (user) {
             user.usedGB = Number(usedGB);
             await user.save();
-
-            // 🌟 Master Panel ဆီသို့ GB အသုံးပြုမှု လှမ်းပို့ပေးမည်
-            try { 
-                // မှတ်ချက်: API လမ်းကြောင်းက /api/update-gb မဟုတ်ဘူးဆိုရင် Master dev ကို မေးပြီး ဒီနေရာမှာ ပြင်ထည့်ပါဗျ
-                await axios.post('http://168.144.33.53:8888/api/update-gb', { 
-                    token: token, 
-                    usedGB: user.usedGB,
-                    totalGB: user.totalGB
-                }, { headers: { 'x-api-key': 'My_Super_Secret_VPN_Key_2026' } }); 
-            } catch(e) { console.log("GB Sync Failed"); }
-
-            // Limit ပြည့်သွားပါက Suspend လုပ်မည်
-            if (user.usedGB >= user.totalGB) {
-                try { await axios.post('http://168.144.33.53:8888/api/user-action', { token: token, action: "suspend" }, { headers: { 'x-api-key': 'My_Super_Secret_VPN_Key_2026' } }); } catch(e){}
-            }
+            return res.json({ success: true, message: "GB Updated in Sub-Panel Successfully" });
+        } else {
+            return res.status(404).json({ error: "User token not found in Sub-Panel" });
         }
-        res.json({ success: true });
-    } catch (error) { res.status(500).json({ error: "DB Error" }); }
-});
-
-adminApp.post('/sync-new-server', async (req, res) => {
-    try {
-        const { newServerName, userKeys } = req.body;
-        for (const [token, newOutlineKey] of Object.entries(userKeys)) {
-            const user = await User.findOne({ token: token });
-            if (user) {
-                user.accessKeys = { ...user.accessKeys, [newServerName]: newOutlineKey };
-                user.markModified('accessKeys'); await user.save(); await require('../config/redis').del(token); 
-            }
-        }
-        res.json({ success: true });
-    } catch (error) { res.status(500).json({ error: "Error" }); }
-});
-
-adminApp.post('/sync-updated-keys', async (req, res) => {
-    try {
-        const { serverName, updatedKeys } = req.body;
-        for (const [token, newKeyData] of Object.entries(updatedKeys)) {
-            const user = await User.findOne({ token: token });
-            if (user && user.accessKeys) {
-                user.accessKeys[serverName] = newKeyData;
-                user.markModified('accessKeys'); await user.save(); await require('../config/redis').del(token); 
-            }
-        }
-        res.json({ success: true });
-    } catch (error) { res.status(500).json({ error: "Error" }); }
+    } catch (error) { 
+        res.status(500).json({ error: "Server Error" }); 
+    }
 });
 
 module.exports = adminApp;
