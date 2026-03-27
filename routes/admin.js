@@ -4,7 +4,6 @@ const axios = require('axios');
 const adminApp = express.Router();
 const Group = require('../models/Group');
 const User = require('../models/User');
-require('dotenv').config();
 
 // ==========================================
 // 1. HOME DASHBOARD (Premium UI)
@@ -50,8 +49,8 @@ adminApp.get('/', async (req, res) => {
 
     let masterGroupsDropdown = '';
     try {
-        // 🌟 IP အသစ် ပြောင်းထားပါသည်
-        const response = await axios.get('http://168.144.33.53:8888/api/active-groups', { headers: { 'x-api-key': process.env.MASTER_API_KEY }, timeout: 5000 });
+        // 🌟 IP အသစ် နှင့် API Key တိုက်ရိုက်ထည့်ထားပါသည်
+        const response = await axios.get('http://168.144.33.53:8888/api/active-groups', { headers: { 'x-api-key': 'My_Super_Secret_VPN_Key_2026' }, timeout: 5000 });
         if (response.data && response.data.groups) {
             response.data.groups.forEach(mg => { masterGroupsDropdown += `<option value="${mg.id}">${mg.name} (${mg.serverCount} Nodes)</option>`; });
         }
@@ -176,10 +175,10 @@ adminApp.post('/add-user', async (req, res) => {
         const { groupName, name, totalGB, expireDate } = req.body;
         const groupInfo = await Group.findOne({ name: groupName });
         
-        // 🌟 IP အသစ် ပြောင်းထားပါသည်
+        // 🌟 IP အသစ် နှင့် API Key တိုက်ရိုက်ထည့်ထားပါသည်
         const masterResponse = await axios.post('http://168.144.33.53:8888/api/generate-keys', {
             masterGroupId: groupInfo.masterGroupId, userName: name, totalGB, expireDate
-        }, { headers: { 'x-api-key': process.env.MASTER_API_KEY } });
+        }, { headers: { 'x-api-key': 'My_Super_Secret_VPN_Key_2026' } });
 
         if (masterResponse.data && masterResponse.data.keys) {
             const token = crypto.randomBytes(16).toString('hex'); 
@@ -205,8 +204,8 @@ adminApp.post('/update-gb-api', async (req, res) => {
             user.usedGB = Number(usedGB);
             await user.save();
             if (user.usedGB >= user.totalGB) {
-                // 🌟 IP အသစ် ပြောင်းထားပါသည်
-                try { await axios.post('http://168.144.33.53:8888/api/user-action', { token: token, action: "suspend" }, { headers: { 'x-api-key': process.env.MASTER_API_KEY } }); } catch(e){}
+                // 🌟 IP အသစ် နှင့် API Key တိုက်ရိုက်ထည့်ထားပါသည်
+                try { await axios.post('http://168.144.33.53:8888/api/user-action', { token: token, action: "suspend" }, { headers: { 'x-api-key': 'My_Super_Secret_VPN_Key_2026' } }); } catch(e){}
             }
         }
         res.json({ success: true });
