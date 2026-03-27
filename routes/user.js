@@ -4,7 +4,6 @@ const userApp = express.Router();
 const redisClient = require('../config/redis');
 const User = require('../models/User');
 const Group = require('../models/Group');
-require('dotenv').config();
 
 // ==========================================
 // 1. USER WEB PANEL (UI)
@@ -71,10 +70,10 @@ userApp.post('/panel/change-server', async (req, res) => {
             const groupInfo = await Group.findOne({ name: user.groupName });
             if (groupInfo) {
                 try {
-                    // 🌟 IP အသစ် ပြောင်းထားပါသည်
+                    // 🌟 IP အသစ် နှင့် API Key တိုက်ရိုက်ထည့်ထားပါသည်
                     const masterResponse = await axios.post('http://168.144.33.53:8888/api/generate-keys', {
                         masterGroupId: groupInfo.masterGroupId, userName: user.name, totalGB: user.totalGB, expireDate: user.expireDate
-                    }, { headers: { 'x-api-key': process.env.MASTER_API_KEY } });
+                    }, { headers: { 'x-api-key': 'My_Super_Secret_VPN_Key_2026' } });
                     
                     if (masterResponse.data && masterResponse.data.keys) {
                         user.accessKeys = masterResponse.data.keys; user.markModified('accessKeys');
@@ -86,10 +85,10 @@ userApp.post('/panel/change-server', async (req, res) => {
         user.currentServer = newServer; await user.save(); await redisClient.del(token); 
 
         try {
-            // 🌟 IP အသစ် ပြောင်းထားပါသည်
+            // 🌟 IP အသစ် နှင့် API Key တိုက်ရိုက်ထည့်ထားပါသည်
             await axios.post('http://168.144.33.53:8888/api/webhook/switch', { 
                 token: token, activeServer: newServer 
-            }, { headers: { 'x-api-key': process.env.MASTER_API_KEY } });
+            }, { headers: { 'x-api-key': 'My_Super_Secret_VPN_Key_2026' } });
         } catch (err) { console.log("Webhook Error"); }
 
         res.redirect('/panel/' + token);
